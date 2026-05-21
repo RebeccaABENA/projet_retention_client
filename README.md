@@ -159,26 +159,32 @@ Métriques d'évaluation
 Compte tenu du déséquilibre des classes (89.8% / 10.2%) :
 
 Métrique et Priorité Justification
-Recall⭐ HauteMinimiser les faux négatifs (churners non détectés = perte financière)
 
-F1-Score⭐ HauteCompromis Precision / Recall
+1 Recall⭐ HauteMinimiser les faux négatifs (churners non détectés = perte financière)
 
-ROC-AUC⭐ HautePerformance indépendante du seuil de décision
+2 F1-Score⭐ HauteCompromis Precision / Recall
 
-Accuracy⚠️ BasseTrompeuse avec un déséquilibre 90/10
+3 ROC-AUC⭐ HautePerformance indépendante du seuil de décision
+
+4 Accuracy⚠️ BasseTrompeuse avec un déséquilibre 90/10
 
 Choix techniques justifiés
 Décision et Justification 
-RobustScalerRobuste aux valeurs aberrantes sans modifier les données brutes 
+1 RobustScalerRobuste aux valeurs aberrantes sans modifier les données brutes 
 
-SimpleImputer(median)Robuste aux outliers contrairement à la moyenne
+2 SimpleImputer(median)Robuste aux outliers contrairement à la moyenne
 
-OneHotEncoder(drop='first') Évite la multicolinéarité parfaite, réduit la dimensionnalité
-class_weight='balanced' Compense le déséquilibre 90/10 sans sur-échantillonnage artificiel
-scale_pos_weight=9 (XGBoost)Équivalent de class_weight pour XGBoost
-MLPClassifier sklearn Réseau multicouche (64, 32) relu + adam — Deep Learning valide sans dépendance TensorFlow
-engagement_score Feature dérivée du sujet combinant logins, jours actifs et CSAT (0-100)
-expected_loss_mensuel  monthly_fee × proba_churn — estimation métier de la perte attendue
+3 OneHotEncoder(drop='first') Évite la multicolinéarité parfaite, réduit la dimensionnalité
+
+4 class_weight='balanced' Compense le déséquilibre 90/10 sans sur-échantillonnage artificiel
+
+5 scale_pos_weight=9 (XGBoost)Équivalent de class_weight pour XGBoost
+
+6 MLPClassifier sklearn Réseau multicouche (64, 32) relu + adam — Deep Learning valide sans dépendance TensorFlow
+
+7 engagement_score Feature dérivée du sujet combinant logins, jours actifs et CSAT (0-100)
+
+8 expected_loss_mensuel  monthly_fee × proba_churn — estimation métier de la perte attendue
 
 Installation et lancement
 
