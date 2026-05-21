@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# Environnements virtuels
+venv/
+env/
+.env/
+.venv/
+
+# Variables d'environnement
+.env
+.env.local
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data — ne jamais pousser les données sur Git
+
+data/raw/
+
+# Modèles sauvegardés
+models/*.pkl
+models/*.joblib
+models/*.h5
+models/*.keras
+
+# Rapports générés
+reports/figures/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+*.tmp
