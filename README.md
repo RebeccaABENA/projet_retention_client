@@ -63,7 +63,7 @@ projet_retention_client/
 
 ---
 
-Description des fichiers
+## Description des fichiers
 src/config.py
 Fichier de configuration centralisé. Contient :
 
@@ -74,7 +74,7 @@ NUMERICAL_FEATURES : liste des 19 variables numériques
 CATEGORICAL_FEATURES : liste des variables catégorielles
 
 
-src/preprocessing.py
+# src/preprocessing.py
 Pipeline de préparation des données scikit-learn. Contient trois fonctions :
 load_data(filepath)
 Charge le CSV brut depuis data/raw/.
@@ -90,12 +90,12 @@ Le fit du pipeline est effectué uniquement sur le train set pour éviter tout d
 prepare_data(df)
 Sépare la matrice de features X du vecteur cible y.
 
-src/modeling.py
+# src/modeling.py
 Entraînement des 4 modèles requis. Contient deux fonctions :
 get_models()
 Initialise les 4 modèles avec gestion du déséquilibre de classes :
 
-#Modèle de Gestion déséquilibre
+## Modèle de Gestion déséquilibre
 1 LogisticRegression class_weight='balanced' 
 
 2 RandomForestClassifierclass_weight='balanced'
@@ -112,7 +112,7 @@ Sauvegarde de chaque modèle en .joblib dans models/
 Sauvegarde du preprocessor.joblib (indispensable pour l'API)
 
 
-src/evaluation.py
+# src/evaluation.py
 
 Évaluation comparative des modèles. Contient :
 evaluate_all_models(models, X_test_processed, y_test)
@@ -125,7 +125,7 @@ Trace les courbes ROC superposées
 Exporte le tableau comparatif en CSV dans reports/
 
 
-notebooks/01_EDA.ipynb
+# notebooks/01_EDA.ipynb
 Analyse Exploratoire des Données complète en 8 cellules :
 
 Imports et configuration des graphiques
@@ -138,24 +138,24 @@ Matrice de corrélation + top corrélations avec le churn
 Variables catégorielles : taux de churn par contract_type, payment_method, customer_segment, survey_response
 
 
-main_train.py
+# main_train.py
 Script d'orchestration principal. Lance toute la chaîne en un seul appel :
 Chargement → Split stratifié → Preprocessing → Entraînement → Évaluation → Export
 bashpython main_train.py
 
-dashboard/app.py
+# dashboard/app.py
 Interface décisionnelle Streamlit orientée utilisateur métier.
 0A completer
 
 
-api/main.py
+# api/main.py
 API REST FastAPI exposant le modèle XGBoost comme service d'inférence :
 
 POST /predict : reçoit les features d'un client en JSON, retourne probabilité de churn + niveau de risque
 GET /health : vérifie que le service est actif et que le modèle est chargé
 
 
-Métriques d'évaluation
+## Métriques d'évaluation
 Compte tenu du déséquilibre des classes (89.8% / 10.2%) :
 
 Métrique et Priorité Justification
@@ -168,8 +168,9 @@ Métrique et Priorité Justification
 
 4 Accuracy⚠️ BasseTrompeuse avec un déséquilibre 90/10
 
-Choix techniques justifiés
+## Choix techniques justifiés
 Décision et Justification 
+
 1 RobustScalerRobuste aux valeurs aberrantes sans modifier les données brutes 
 
 2 SimpleImputer(median)Robuste aux outliers contrairement à la moyenne
@@ -186,7 +187,7 @@ Décision et Justification
 
 8 expected_loss_mensuel  monthly_fee × proba_churn — estimation métier de la perte attendue
 
-Installation et lancement
+## Installation et lancement
 
 1. Cloner le repository
 bashgit clone https://github.com/ton-username/projet_retention_client.git
@@ -216,7 +217,7 @@ API : http://localhost:8000
 Documentation Swagger : http://localhost:8000/docs
 
 
-Exemple d'appel API
+ # Exemple d'appel API
 bashcurl -X POST "http://localhost:8000/predict" \
      -H "Content-Type: application/json" \
      -d '{
@@ -229,7 +230,7 @@ bashcurl -X POST "http://localhost:8000/predict" \
            "customer_segment": "individual"
          }'
          
-Réponse attendue :
+# Réponse attendue :
 json{
   "churn_probability": 0.847,
   "churn_prediction": 1,
@@ -238,7 +239,7 @@ json{
 
 
 
-Auteurs
+# Auteurs
 Rebecca & Flavio
 
-Projet réalisé dans le cadre du module Data Science — EFREI Paris — 2025-26
+ # Projet réalisé dans le cadre du module Data Science — EFREI Paris — 2025-26
