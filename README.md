@@ -94,7 +94,16 @@ src/modeling.py
 Entraînement des 4 modèles requis. Contient deux fonctions :
 get_models()
 Initialise les 4 modèles avec gestion du déséquilibre de classes :
-#ModèleGestion déséquilibre1LogisticRegressionclass_weight='balanced'2RandomForestClassifierclass_weight='balanced'3XGBClassifierscale_pos_weight=9.04MLPClassifier(64, 32)architecture relu + adam
+
+#Modèle de Gestion déséquilibre
+1 LogisticRegression class_weight='balanced' 
+
+2 RandomForestClassifierclass_weight='balanced'
+
+3 XGBClassifierscale_pos_weight=9.0
+
+4MLPClassifier(64, 32)architecture relu + adam
+
 train_and_save_models(X_train, y_train, preprocessor)
 
 Fit du pipeline sur le train set
@@ -104,8 +113,10 @@ Sauvegarde du preprocessor.joblib (indispensable pour l'API)
 
 
 src/evaluation.py
+
 Évaluation comparative des modèles. Contient :
 evaluate_all_models(models, X_test_processed, y_test)
+
 Pour chaque modèle :
 
 Calcule les 5 métriques : Accuracy, Precision, Recall, F1-Score, ROC-AUC
@@ -146,16 +157,31 @@ GET /health : vérifie que le service est actif et que le modèle est chargé
 
 Métriques d'évaluation
 Compte tenu du déséquilibre des classes (89.8% / 10.2%) :
-MétriquePrioritéJustificationRecall⭐ HauteMinimiser les faux négatifs (churners non détectés = perte financière)
+
+Métrique et Priorité Justification
+Recall⭐ HauteMinimiser les faux négatifs (churners non détectés = perte financière)
+
 F1-Score⭐ HauteCompromis Precision / Recall
+
 ROC-AUC⭐ HautePerformance indépendante du seuil de décision
+
 Accuracy⚠️ BasseTrompeuse avec un déséquilibre 90/10
 
 Choix techniques justifiés
-DécisionJustificationRobustScalerRobuste aux valeurs aberrantes sans modifier les données brutes (vs capping IQR)
-SimpleImputer(median)Robuste aux outliers contrairement à la moyenneOneHotEncoder(drop='first')Évite la multicolinéarité parfaite, réduit la dimensionnalitéclass_weight='balanced'Compense le déséquilibre 90/10 sans sur-échantillonnage artificielscale_pos_weight=9 (XGBoost)Équivalent de class_weight pour XGBoostMLPClassifier sklearnRéseau multicouche (64, 32) relu + adam — Deep Learning valide sans dépendance TensorFlowengagement_scoreFeature dérivée du sujet combinant logins, jours actifs et CSAT (0-100)expected_loss_mensuelmonthly_fee × proba_churn — estimation métier de la perte attendue
+Décision et Justification 
+RobustScalerRobuste aux valeurs aberrantes sans modifier les données brutes 
+
+SimpleImputer(median)Robuste aux outliers contrairement à la moyenne
+
+OneHotEncoder(drop='first') Évite la multicolinéarité parfaite, réduit la dimensionnalité
+class_weight='balanced' Compense le déséquilibre 90/10 sans sur-échantillonnage artificiel
+scale_pos_weight=9 (XGBoost)Équivalent de class_weight pour XGBoost
+MLPClassifier sklearn Réseau multicouche (64, 32) relu + adam — Deep Learning valide sans dépendance TensorFlow
+engagement_score Feature dérivée du sujet combinant logins, jours actifs et CSAT (0-100)
+expected_loss_mensuel  monthly_fee × proba_churn — estimation métier de la perte attendue
 
 Installation et lancement
+
 1. Cloner le repository
 bashgit clone https://github.com/ton-username/projet_retention_client.git
 cd projet_retention_client
@@ -164,9 +190,9 @@ bashpython -m venv env
 
 # Windows
 env\Scripts\activate
-
 # Mac / Linux
 source env/bin/activate
+
 3. Installer les dépendances
 bashpip install -r requirements.txt
 4. Placer le dataset
@@ -196,6 +222,7 @@ bashcurl -X POST "http://localhost:8000/predict" \
            "contract_type": "monthly",
            "customer_segment": "individual"
          }'
+         
 Réponse attendue :
 json{
   "churn_probability": 0.847,
