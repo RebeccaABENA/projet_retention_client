@@ -619,7 +619,7 @@ elif "Simulateur" in page:
                 fig_shap, ax = plt.subplots(figsize=(10, 6))
                 fig_shap.patch.set_facecolor("white")
                 shap.plots.waterfall(explanation, max_display=15, show=False)
-                plt.title("Contributions SHAP — Profil simulé", fontsize=12, pad=10)
+                plt.title("Contributions SHAP — Profil  simulé", fontsize=12, pad=10)
                 plt.tight_layout()
                 st.pyplot(fig_shap)
                 plt.close(fig_shap)
