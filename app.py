@@ -170,6 +170,7 @@ if "Exécutive" in page:
     loss  = df["expected_loss_total"].sum()
     eng   = df["engagement_score"].mean()
 
+    # Ligne 1 — KPIs principaux (déjà présents, légèrement enrichis)
     c1,c2,c3,c4,c5 = st.columns(5)
     c1.markdown(kpi("Clients à Risque",    f"{nrisk:,}",     f"{taux*100:.1f}% du portefeuille","red"),    unsafe_allow_html=True)
     c2.markdown(kpi("Comptes Critiques",   f"{ncrit:,}",     "Proba > 75%","red"),                          unsafe_allow_html=True)
@@ -177,24 +178,66 @@ if "Exécutive" in page:
     c4.markdown(kpi("Expected Loss Total", f"{loss:,.0f}€",  "Σ(rev × proba)","purple"),                   unsafe_allow_html=True)
     c5.markdown(kpi("Engagement Moyen",    f"{eng:.1f}/100", "Score comportemental","green" if eng>60 else "red"), unsafe_allow_html=True)
 
+    # Ligne 2 — Nouveaux KPIs
+    nps_moy       = df["nps_score"].mean()
+    taux_retention = (1 - taux) * 100
+    tenure_crit   = df[df["risk_level"]=="Critique"]["tenure_months"].mean()
+    tenure_secu   = df[df["risk_level"]=="Faible"]["tenure_months"].mean()
+    rev_recuperable = df[df["risk_level"]=="Critique"]["expected_loss_mensuel"].sum() * 0.20
+
     st.markdown("")
-    col1, col2, col3 = st.columns([1.1,1.1,1.8])
+    k1,k2,k3,k4 = st.columns(4)
+    k1.markdown(kpi("Taux de Rétention",
+                    f"{taux_retention:.1f}%",
+                    "clients hors risque >50%",
+                    "green" if taux_retention > 85 else "orange"),
+                unsafe_allow_html=True)
+    k2.markdown(kpi("NPS Moyen Portefeuille",
+                    f"{nps_moy:.0f}",
+                    "Net Promoter Score",
+                    "green" if nps_moy > 30 else ("orange" if nps_moy > 0 else "red")),
+                unsafe_allow_html=True)
+    k3.markdown(kpi("Ancienneté Moy. Critiques",
+                    f"{tenure_crit:.0f} mois",
+                    f"vs {tenure_secu:.0f} mois (sécurisés)",
+                    "orange"),
+                unsafe_allow_html=True)
+    k4.markdown(kpi("Revenu Récupérable (20%)",
+                    f"{rev_recuperable:,.0f}€",
+                    "si 20% des critiques retenus",
+                    "green"),
+                unsafe_allow_html=True)
+
+
+    st.markdown("")
+    # ── Ligne 1 : Risque + Répartition
+    col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("<div class='section-title'>Risque Global</div>", unsafe_allow_html=True)
         fig = go.Figure(go.Indicator(
             mode="gauge+number+delta", value=taux*100,
             number={"suffix":"%","font":{"size":34}},
-            delta={"reference":10,"increasing":{"color":"#E63946"},"decreasing":{"color":"#2A9D8F"}},
-            title={"text":"Taux de Churn Prédit","font":{"size":12,"color":"#8A8FA8"}},
-            gauge={"axis":{"range":[0,30]},"bar":{"color":"#E63946","thickness":0.25},
+            delta={"reference":10,"increasing":{"color":"#E63946"},
+                "decreasing":{"color":"#2A9D8F"},"suffix":" pts vs seuil cible"},
+            title={"text":"Clients identifiés à risque de départ","font":{"size":12,"color":"#8A8FA8"}},
+            gauge={"axis":{"range":[0,30],"tickvals":[0,10,20,30],"ticktext":["0%","10% ⚠️","20% 🚨","30%"]},
+                "bar":{"color":"#E63946","thickness":0.25},
                 "bgcolor":"#F4F6F9","borderwidth":0,
                 "steps":[{"range":[0,10],"color":"#E8F8F5"},
                             {"range":[10,20],"color":"#FFF3E0"},
-                            {"range":[20,30],"color":"#FFE5E7"}]}
+                            {"range":[20,30],"color":"#FFE5E7"}],
+                "threshold":{"line":{"color":"#E63946","width":3},"thickness":0.75,"value":10}}
         ))
-        fig.update_layout(**PLOTLY_BASE, height=250)
+        fig.update_layout(**PLOTLY_BASE, height=260)
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown(f"""
+        <div style='background:#FFE5E7;border-radius:8px;padding:10px 14px;
+                    border-left:4px solid #E63946;font-size:12px;color:#1A1A2E'>
+            <b>📌 En clair :</b> {nrisk:,} clients sur {nb:,} sont susceptibles de partir,
+            représentant <b>{mrr_e:,.0f}€</b> de MRR mensuel exposé.
+        </div>
+        """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("<div class='section-title'>Répartition du Risque</div>", unsafe_allow_html=True)
@@ -205,46 +248,47 @@ if "Exécutive" in page:
         fig.update_traces(textposition="outside", textinfo="percent+label", textfont_size=11)
         fig.add_annotation(text=f"<b>{nb:,}</b><br>clients", x=0.5, y=0.5,
                         showarrow=False, font=dict(size=14,color="#1A1A2E"))
-        fig.update_layout(**PLOTLY_BASE, height=250, showlegend=False)
+        fig.update_layout(**PLOTLY_BASE, height=320, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
+
+    # ── Ligne 2 : MRR par Segment + Engagement moyen par segment
+    col3, col4 = st.columns(2)
 
     with col3:
         st.markdown("<div class='section-title'>MRR par Segment & Niveau de Risque</div>", unsafe_allow_html=True)
         seg = df.groupby("customer_segment").apply(lambda x: pd.Series({
-    "Sécurisé":  x[x["proba_churn"]<0.40]["monthly_fee"].sum(),
-    "Modéré":    x[(x["proba_churn"]>=0.40)&(x["proba_churn"]<0.75)]["monthly_fee"].sum(),
-    "Critique":  x[x["proba_churn"]>=0.75]["monthly_fee"].sum(),
-}), include_groups=False).reset_index()
+            "Sécurisé": x[x["proba_churn"]<0.40]["monthly_fee"].sum(),
+            "Modéré":   x[(x["proba_churn"]>=0.40)&(x["proba_churn"]<0.75)]["monthly_fee"].sum(),
+            "Critique": x[x["proba_churn"]>=0.75]["monthly_fee"].sum(),
+        }), include_groups=False).reset_index()
         fig = px.bar(seg, x="customer_segment", y=["Sécurisé","Modéré","Critique"],
-                    barmode="stack", color_discrete_sequence=["#2A9D8F","#F4A261","#E63946"])
-        fig.update_layout(**PLOTLY_BASE, height=250,
-                        xaxis=ax(), yaxis={**ax(),"tickprefix":"€"},
-                        legend=dict(orientation="h",y=-0.3,font_size=11))
+                    barmode="stack",
+                    color_discrete_sequence=["#2A9D8F","#F4A261","#E63946"])
+        fig.update_layout(**PLOTLY_BASE, height=500,
+                        xaxis={**ax(),"title":"Segment"},
+                        yaxis={**ax(),"tickprefix":"€","title":"MRR (€)"},
+                        legend=dict(orientation="h",y=-0.25,font_size=11))
         st.plotly_chart(fig, use_container_width=True)
 
-    col4, col5 = st.columns(2)
     with col4:
-        st.markdown("<div class='section-title'>Engagement par Niveau de Risque</div>", unsafe_allow_html=True)
-        dp = df.copy()
-        dp["Churn Réel"] = dp["churn"].map({0:"No Churn",1:"Churn"})
-        fig = px.box(df, x="risk_level", y="engagement_score", color="risk_level",
-                    color_discrete_map=COLORS["risk"],
-                    category_orders={"risk_level":["Faible","Modéré","Critique"]}, points="outliers")
-        fig.update_layout(**PLOTLY_BASE, height=300, showlegend=False,
-                        xaxis={**ax(),"title":""},yaxis={**ax(),"title":"Score Engagement"})
+        st.markdown("<div class='section-title'>Revenu à Risque par Segment</div>", unsafe_allow_html=True)
+        risk_seg = (df.groupby("customer_segment")
+                    .agg(expected_loss=("expected_loss_mensuel","sum"),
+                        nb_clients=("customer_id","count"))
+                    .reset_index()
+                    .sort_values("expected_loss", ascending=True))
+        risk_seg["label"] = risk_seg["expected_loss"].apply(lambda x: f"{x:,.0f}€")
+        fig = px.bar(risk_seg, x="expected_loss", y="customer_segment",
+                    orientation="h", text="label",
+                    color="expected_loss",
+                    color_continuous_scale=["#F4A261","#E63946"])
+        fig.update_traces(textposition="inside", textfont=dict(color="white", size=12))
+        fig.update_layout(**PLOTLY_BASE, height=500, showlegend=False,
+                        coloraxis_showscale=False,
+                        xaxis={**ax(), "title": "Expected Loss Mensuel (€)"},
+                        yaxis={**ax(), "title": ""})
         st.plotly_chart(fig, use_container_width=True)
 
-    with col5:
-        st.markdown("<div class='section-title'>Distribution des Probabilités de Churn</div>", unsafe_allow_html=True)
-        fig = px.histogram(df, x="proba_churn", nbins=40, color_discrete_sequence=["#4361EE"])
-        fig.add_vline(x=0.40, line_dash="dash", line_color="#F4A261",
-                    annotation_text="Seuil Modéré", annotation_font_color="#F4A261")
-        fig.add_vline(x=0.75, line_dash="dash", line_color="#E63946",
-                    annotation_text="Seuil Critique", annotation_font_color="#E63946")
-        fig.update_layout(**PLOTLY_BASE, height=300,
-                        xaxis={**ax(),"title":"Probabilité de Churn"},
-                        yaxis={**ax(),"title":"Nombre de Clients"})
-        st.plotly_chart(fig, use_container_width=True)
 
 
 # ═════════════════════════════════════════════
@@ -262,73 +306,226 @@ elif "Churn" in page:
         f_con   = st.multiselect("Contrat",  df["contract_type"].unique(),    default=list(df["contract_type"].unique()))
         f_seuil = st.slider("Proba minimum", 0.0, 1.0, 0.0, 0.05)
 
-    df_f = df[df["customer_segment"].isin(f_seg) & df["contract_type"].isin(f_con) & (df["proba_churn"] >= f_seuil)]
-
+    df_f = df[
+        df["customer_segment"].isin(f_seg) & 
+        df["contract_type"].isin(f_con) & 
+        (df["proba_churn"] >= f_seuil)
+        ].copy()
+    
+    # ── KPIs
     c1,c2,c3,c4 = st.columns(4)
     top_r = df_f.loc[df_f["proba_churn"].idxmax()] if not df_f.empty else None
-    c1.markdown(kpi("Clients Filtrés",   f"{len(df_f):,}",                      "dans la sélection","blue"),   unsafe_allow_html=True)
+    c1.markdown(kpi("Clients Filtrés",   f"{len(df_f):,}",                       "dans la sélection","blue"),  unsafe_allow_html=True)
     c2.markdown(kpi("Proba Churn Moy.",  f"{df_f['proba_churn'].mean()*100:.1f}%","sur le segment","orange"),  unsafe_allow_html=True)
-    c3.markdown(kpi("CSAT Moyen",        f"{df_f['csat_score'].mean():.2f}/5",   "satisfaction","green"),      unsafe_allow_html=True)
+    c3.markdown(kpi("CSAT Moyen",        f"{df_f['csat_score'].mean():.2f}/5",    "satisfaction","green"),     unsafe_allow_html=True)
     c4.markdown(kpi("Client + à Risque",
                     top_r["customer_id"] if top_r is not None else "N/A",
                     f"Proba: {top_r['proba_churn']*100:.1f}%" if top_r is not None else "","red"),
                 unsafe_allow_html=True)
     st.markdown("")
 
+    # ── Ligne 1 : Ancienneté + Tickets & Échecs par niveau de risque
     col1, col2 = st.columns(2)
+
     with col1:
-        st.markdown("<div class='section-title'>Risque Moyen par Variable Catégorielle</div>", unsafe_allow_html=True)
-        var_cat = st.selectbox("Variable :", ["contract_type","customer_segment","payment_method",
-                                            "survey_response","signup_channel","discount_applied",
-                                            "price_increase_last_3m","complaint_type"])
-        cd = df_f.groupby(var_cat)["proba_churn"].mean().reset_index().sort_values("proba_churn", ascending=True)
-        fig = px.bar(cd, x="proba_churn", y=var_cat, orientation="h",
-                    color="proba_churn", color_continuous_scale=["#2A9D8F","#F4A261","#E63946"],
-                    text=cd["proba_churn"].apply(lambda x:f"{x*100:.1f}%"))
+        st.markdown("<div class='section-title'>Taux de Churn par Tranche d'Ancienneté</div>", unsafe_allow_html=True)
+        df_f2 = df_f.copy()
+        df_f2["tranche_tenure"] = pd.cut(
+            df_f2["tenure_months"],
+            bins=[0, 12, 24, 36, 200],
+            labels=["0–12 mois", "12–24 mois", "24–36 mois", "36+ mois"]
+        )
+        churn_tenure = (df_f2.groupby("tranche_tenure", observed=True)["churn"]
+                            .mean().reset_index()
+                            .sort_values("tranche_tenure"))
+        churn_tenure["couleur"] = churn_tenure["churn"].apply(
+            lambda x: "#E63946" if x >= 0.15 else ("#F4A261" if x >= 0.08 else "#2A9D8F")
+        )
+        churn_tenure["label"] = churn_tenure["churn"].apply(lambda x: f"{x*100:.1f}%")
+        fig = px.bar(churn_tenure, x="tranche_tenure", y="churn",
+                    text="label", color="couleur", color_discrete_map="identity")
         fig.update_traces(textposition="outside")
-        fig.update_layout(**PLOTLY_BASE, height=320, coloraxis_showscale=False,
-                        xaxis={**ax(),"title":"Proba Churn Moyenne","tickformat":".0%"},
-                        yaxis={**ax(),"title":""})
+        fig.update_layout(**PLOTLY_BASE, height=350, showlegend=False,
+                        xaxis={**ax(), "title": "Ancienneté du Client"},
+                        yaxis={**ax(), "title": "Taux de Churn Réel", "tickformat": ".0%"})
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown("""
+        <div style='background:#F8F9FA;border-radius:8px;padding:10px 14px;
+                    border-left:4px solid #4361EE;font-size:12px;color:#1A1A2E'>
+            💡 <b>Action :</b> Intensifier l'onboarding sur les 12 premiers mois —
+            c'est la période la plus critique pour la rétention.
+        </div>
+        """, unsafe_allow_html=True)
 
     with col2:
-        st.markdown("<div class='section-title'>Scatter : Engagement vs Risque de Churn</div>", unsafe_allow_html=True)
-        fig = px.scatter(df_f, x="engagement_score", y="proba_churn",
-                        color="risk_level", color_discrete_map=COLORS["risk"],
-                        size="monthly_fee", size_max=14, opacity=0.6,
-                        hover_data=["customer_id","contract_type","monthly_fee"])
-        fig.add_hline(y=0.5, line_dash="dot", line_color="#8A8FA8",
-                    annotation_text="Seuil 50%", annotation_font_color="#8A8FA8")
-        fig.update_layout(**PLOTLY_BASE, height=320,
-                        xaxis={**ax(),"title":"Score d'Engagement (0–100)"},
-                        yaxis={**ax(),"title":"Probabilité de Churn"},
-                        legend=dict(title="Risque",orientation="h",y=-0.25))
+        st.markdown("<div class='section-title'>Signaux d'Alerte Moyens par Niveau de Risque</div>", unsafe_allow_html=True)
+        signal = df_f.groupby("risk_level").agg(
+            tickets=("support_tickets", "mean"),
+            echecs=("payment_failures", "mean")
+        ).reset_index()
+        signal_m = signal.melt(id_vars="risk_level", value_vars=["tickets","echecs"],
+                               var_name="Signal", value_name="Moyenne")
+        signal_m["Signal"] = signal_m["Signal"].map({
+            "tickets": "Tickets Support",
+            "echecs":  "Échecs Paiement"
+        })
+        signal_m["risk_level"] = pd.Categorical(
+            signal_m["risk_level"], categories=["Faible","Modéré","Critique"], ordered=True
+        )
+        signal_m = signal_m.sort_values("risk_level")
+        fig = px.bar(signal_m, x="risk_level", y="Moyenne", color="Signal",
+                    barmode="group", text=signal_m["Moyenne"].apply(lambda x: f"{x:.1f}"),
+                    color_discrete_map={"Tickets Support": "#4361EE", "Échecs Paiement": "#E63946"})
+        fig.update_traces(textposition="outside")
+        fig.update_layout(**PLOTLY_BASE, height=350,
+                        xaxis={**ax(), "title": "Niveau de Risque"},
+                        yaxis={**ax(), "title": "Moyenne par Client"},
+                        legend=dict(orientation="h", y=-0.25, font_size=11))
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown("""
+        <div style='background:#F8F9FA;border-radius:8px;padding:10px 14px;
+                    border-left:4px solid #4361EE;font-size:12px;color:#1A1A2E'>
+            💡 <b>Action :</b> Déclencher une alerte automatique dès 3 tickets
+            ouverts ou 2 échecs de paiement consécutifs.
+        </div>
+        """, unsafe_allow_html=True)
 
+    st.markdown("")
+
+    # ── Ligne 2 : Échecs de paiement + CSAT par tranches
     col3, col4 = st.columns(2)
+
     with col3:
-        st.markdown("<div class='section-title'>Heatmap : Risque Moyen Contrat × Segment</div>", unsafe_allow_html=True)
-        hmap = pd.crosstab(df_f["contract_type"], df_f["customer_segment"],
-                        values=df_f["proba_churn"], aggfunc="mean").fillna(0)
-        fig = px.imshow(hmap, text_auto=".2f",
-                        color_continuous_scale=["#E8F8F5","#F4A261","#E63946"], aspect="auto")
-        fig.update_layout(**PLOTLY_BASE, height=280, coloraxis_showscale=False)
+        st.markdown("<div class='section-title'>Probabilité de Churn selon les Échecs de Paiement</div>", unsafe_allow_html=True)
+        df_f3 = df_f.copy()
+        df_f3["tranche_failures"] = pd.cut(
+            df_f3["payment_failures"],
+            bins=[-1, 0, 1, 2, 10],
+            labels=["0 échec", "1 échec", "2 échecs", "3+ échecs"]
+        )
+        churn_fail = (df_f3.groupby("tranche_failures", observed=True)["proba_churn"]
+                          .mean().reset_index()
+                          .sort_values("tranche_failures"))
+        churn_fail["couleur"] = churn_fail["proba_churn"].apply(
+            lambda x: "#E63946" if x >= 0.40 else ("#F4A261" if x >= 0.20 else "#2A9D8F")
+        )
+        churn_fail["label"] = churn_fail["proba_churn"].apply(lambda x: f"{x*100:.1f}%")
+        fig = px.bar(churn_fail, x="tranche_failures", y="proba_churn",
+                    text="label", color="couleur", color_discrete_map="identity")
+        fig.update_traces(textposition="outside")
+        fig.update_layout(**PLOTLY_BASE, height=350, showlegend=False,
+                        xaxis={**ax(), "title": "Nombre d'Échecs de Paiement"},
+                        yaxis={**ax(), "title": "Probabilité de Churn Moyenne", "tickformat": ".0%"})
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown("""
+        <div style='background:#F8F9FA;border-radius:8px;padding:10px 14px;
+                    border-left:4px solid #4361EE;font-size:12px;color:#1A1A2E'>
+            💡 <b>Action :</b> Contacter immédiatement tout client avec 2+ échecs
+            de paiement — risque de churn fortement amplifié.
+        </div>
+        """, unsafe_allow_html=True)
 
     with col4:
-        st.markdown("<div class='section-title'>Analyse Univariée — Variable Numérique vs Churn</div>", unsafe_allow_html=True)
-        num_var = st.selectbox("Variable numérique :", [
-            "tenure_months","monthly_fee","csat_score","nps_score",
-            "payment_failures","support_tickets","last_login_days_ago",
-            "monthly_logins","engagement_score","avg_resolution_time"])
-        dp = df_f.copy(); dp["Churn"] = dp["churn"].map({0:"No Churn",1:"Churn"})
-        fig = px.violin(dp, x="Churn", y=num_var, color="Churn",
-                        color_discrete_map={"No Churn":"#2A9D8F","Churn":"#E63946"},
-                        box=True, points="outliers")
-        fig.update_layout(**PLOTLY_BASE, height=280, showlegend=False,
-                        xaxis={**ax(),"title":""},yaxis={**ax(),"title":num_var})
+        st.markdown("<div class='section-title'>Probabilité de Churn par Tranche de Satisfaction (CSAT)</div>", unsafe_allow_html=True)
+        df_f4 = df_f.copy()
+        df_f4["tranche_csat"] = pd.cut(
+            df_f4["csat_score"],
+            bins=[0, 2, 3, 4, 5],
+            labels=["1–2 (Très insatisfait)", "2–3 (Insatisfait)", "3–4 (Neutre)", "4–5 (Satisfait)"]
+        )
+        churn_csat = (df_f4.groupby("tranche_csat", observed=True)["proba_churn"]
+                          .mean().reset_index()
+                          .sort_values("tranche_csat"))
+        churn_csat["couleur"] = churn_csat["proba_churn"].apply(
+            lambda x: "#E63946" if x >= 0.40 else ("#F4A261" if x >= 0.20 else "#2A9D8F")
+        )
+        churn_csat["label"] = churn_csat["proba_churn"].apply(lambda x: f"{x*100:.1f}%")
+        fig = px.bar(churn_csat, x="proba_churn", y="tranche_csat",
+                    orientation="h", text="label",
+                    color="couleur", color_discrete_map="identity")
+        fig.update_traces(textposition="outside")
+        fig.update_layout(**PLOTLY_BASE, height=350, showlegend=False,
+                        xaxis={**ax(), "title": "Probabilité de Churn Moyenne", "tickformat": ".0%"},
+                        yaxis={**ax(), "title": ""})
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown("""
+        <div style='background:#F8F9FA;border-radius:8px;padding:10px 14px;
+                    border-left:4px solid #4361EE;font-size:12px;color:#1A1A2E'>
+            💡 <b>Action :</b> Toute note CSAT inférieure à 3 doit déclencher
+            un appel de satisfaction dans les 48h.
+        </div>
+        """, unsafe_allow_html=True)
 
+    # ── Ligne 3 : Feature Importance Globale
+    st.markdown("")
+    st.markdown("<div class='section-title'>🎯 Variables les Plus Influentes sur le Churn</div>", unsafe_allow_html=True)
+
+    # Récupérer la feature importance native de XGBoost
+    importance = model.feature_importances_
+
+    # Récupérer les noms de features
+    try:
+        num_names = preprocessor.named_transformers_["num"].feature_names_in_
+        cat_input_features = preprocessor.transformers_[1][2]
+        cat_encoder = preprocessor.named_transformers_["cat"].named_steps["onehot"]
+        cat_names = cat_encoder.get_feature_names_out(cat_input_features)
+        feat_names = list(num_names) + list(cat_names)
+    except Exception:
+        try:
+            feat_names = list(preprocessor.get_feature_names_out())
+        except Exception:
+            feat_names = [f"feature_{i}" for i in range(len(importance))]
+
+    # Mapping noms techniques → langage métier
+    labels_fi = {
+        "payment_failures":    "Échecs de paiement",
+        "support_tickets":     "Tickets support",
+        "csat_score":          "Score CSAT",
+        "tenure_months":       "Ancienneté client",
+        "last_login_days_ago": "Jours depuis dernière connexion",
+        "monthly_logins":      "Connexions mensuelles",
+        "nps_score":           "Score NPS",
+        "contract_type":       "Type de contrat",
+        "weekly_active_days":  "Jours actifs / semaine",
+        "monthly_fee":         "MRR mensuel",
+        "avg_resolution_time": "Temps résolution support",
+        "escalations":         "Escalades support",
+        "email_open_rate":     "Taux ouverture emails",
+        "features_used":       "Fonctionnalités utilisées",
+        "usage_growth_rate":   "Taux de croissance d'usage",
+        "age":                 "Âge du client",
+        "total_revenue":       "Revenu total historique",
+    }
+
+    def nom_fi(f):
+        for k, v in labels_fi.items():
+            if k in f:
+                return v
+        return f
+
+    fi_df = pd.DataFrame({
+        "feature":    [nom_fi(f) for f in feat_names],
+        "importance": importance
+    }).groupby("feature")["importance"].sum().reset_index()  # groupby car OHE crée plusieurs colonnes par variable
+    fi_df = fi_df.sort_values("importance", ascending=True).tail(12)
+
+    fi_df["couleur"] = fi_df["importance"].apply(
+        lambda x: "#E63946" if x >= fi_df["importance"].quantile(0.75)
+        else ("#F4A261" if x >= fi_df["importance"].quantile(0.50)
+        else "#4361EE")
+    )
+
+    fig = px.bar(fi_df, x="importance", y="feature",
+                orientation="h",
+                text=fi_df["importance"].apply(lambda x: f"{x:.3f}"),
+                color="couleur", color_discrete_map="identity")
+    fig.update_traces(textposition="outside")
+    fig.update_layout(**PLOTLY_BASE, height=500, showlegend=False,
+                    xaxis={**ax(), "title": "Importance (contribution à la réduction d'impureté)"},
+                    yaxis={**ax(), "title": ""})
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.info("💡 **Comment lire ce graphique ?** Plus la barre est longue, plus la variable influence les décisions du modèle. Les variables en rouge sont les plus déterminantes pour prédire le churn — ce sont les leviers prioritaires pour vos campagnes de rétention.")
 
 # ═════════════════════════════════════════════
 # PAGE 3 — IMPACT FINANCIER
@@ -387,46 +584,105 @@ elif "Financier" in page:
                         legend=dict(title="Risque",orientation="h",y=-0.2))
         st.plotly_chart(fig, use_container_width=True)
 
-    col3, col4 = st.columns([1.8,1.2])
+    col3, col4 = st.columns([1.8, 1.2])
+
     with col3:
-        st.markdown("<div class='section-title'>Quadrant Valeur × Risque — Urgences Absolues</div>", unsafe_allow_html=True)
-        fig = px.scatter(df, x="total_revenue", y="proba_churn",
-                        color="risk_level", color_discrete_map=COLORS["risk"],
-                        size="monthly_fee", size_max=16, opacity=0.6,
-                        hover_data=["customer_id","contract_type","customer_segment"])
-        fig.add_hline(y=0.75, line_dash="dash", line_color="#E63946",
-                    annotation_text="Seuil Critique", annotation_font_color="#E63946")
-        fig.add_vline(x=df["total_revenue"].quantile(0.80), line_dash="dash", line_color="#F4A261",
-                    annotation_text="Top 20% Valeur", annotation_font_color="#F4A261")
-        fig.update_layout(**PLOTLY_BASE, height=360,
-                        xaxis={**ax(),"title":"Revenu Total Historique (€)"},
-                        yaxis={**ax(),"title":"Probabilité de Churn"},
-                        legend=dict(title="Risque",orientation="h",y=-0.2))
+        st.markdown("<div class='section-title'>Expected Loss par Type de Contrat</div>", unsafe_allow_html=True)
+        lc = (df.groupby("contract_type")["expected_loss_mensuel"]
+                .sum().reset_index()
+                .sort_values("expected_loss_mensuel", ascending=False))
+        lc["label"] = lc["expected_loss_mensuel"].apply(lambda x: f"{x:,.0f}€")
+        fig = px.bar(lc, x="contract_type", y="expected_loss_mensuel",
+                    color="contract_type",
+                    color_discrete_sequence=[COLORS["red"], COLORS["orange"], COLORS["green"]],
+                    text="label")
+        fig.update_traces(textposition="outside")
+        fig.update_layout(**PLOTLY_BASE, height=320, showlegend=False,
+                        xaxis={**ax(), "title": "Type de Contrat"},
+                        yaxis={**ax(), "title": "Expected Loss Mensuel (€)"})
         st.plotly_chart(fig, use_container_width=True)
 
     with col4:
-        st.markdown("<div class='section-title'>Expected Loss par Contrat</div>", unsafe_allow_html=True)
-        lc = df.groupby("contract_type")["expected_loss_mensuel"].sum().reset_index().sort_values("expected_loss_mensuel",ascending=False)
-        fig = px.bar(lc, x="contract_type", y="expected_loss_mensuel",
-                    color="contract_type",
-                    color_discrete_sequence=[COLORS["red"],COLORS["orange"],COLORS["green"]],
-                    text=lc["expected_loss_mensuel"].apply(lambda x:f"{x:,.0f}€"))
-        fig.update_traces(textposition="outside")
-        fig.update_layout(**PLOTLY_BASE, height=360, showlegend=False,
-                        xaxis={**ax(),"title":""},yaxis={**ax(),"title":"Expected Loss (€)"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("<div class='section-title'>Simulateur ROI de Rétention</div>", unsafe_allow_html=True)
+        
+        nb_critiques   = len(df[df["risk_level"] == "Critique"])
+        mrr_crit_total = df[df["risk_level"] == "Critique"]["monthly_fee"].sum()
+        
+        pct_retention = st.slider(
+            "% de clients critiques retenus", 5, 50, 20, 5,
+            help="Estimation du taux de succès de la campagne de rétention"
+        )
+        cout_action = st.slider(
+            "Coût par action de rétention (€)", 10, 200, 50, 10,
+            help="Coût estimé d'un appel, email personnalisé ou remise"
+        )
+        
+        nb_retenus     = int(nb_critiques * pct_retention / 100)
+        gain_brut      = mrr_crit_total * pct_retention / 100
+        cout_total     = nb_retenus * cout_action
+        roi_net        = gain_brut - cout_total
+        roi_couleur    = "#2A9D8F" if roi_net > 0 else "#E63946"
+        roi_icon       = "📈" if roi_net > 0 else "📉"
 
-    st.markdown("<div class='section-title'>📋 Comptes Critiques (Proba > 75% & MRR > Moyenne)</div>", unsafe_allow_html=True)
-    crit = (df[(df["proba_churn"]>0.75)&(df["monthly_fee"]>df["monthly_fee"].mean())]
-            .sort_values("expected_loss_mensuel",ascending=False)
-            [["customer_id","customer_segment","contract_type","monthly_fee",
-                "total_revenue","proba_churn","csat_score","payment_failures"]]
-            .rename(columns={"customer_id":"ID Client","customer_segment":"Segment",
-                            "contract_type":"Contrat","monthly_fee":"MRR (€)",
-                            "total_revenue":"LTV (€)","proba_churn":"Proba Churn",
-                            "csat_score":"CSAT","payment_failures":"Échecs Paiement"}))
-    crit["Proba Churn"] = crit["Proba Churn"].apply(lambda x:f"{x*100:.1f}%")
-    st.dataframe(crit, use_container_width=True, hide_index=True)
+        st.markdown(f"""
+        <div style='background:#FFFFFF;border-radius:12px;padding:18px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-top:10px'>
+            <div style='display:grid;grid-template-columns:1fr 1fr;gap:12px'>
+                <div style='text-align:center'>
+                    <div style='font-size:10px;font-weight:700;color:#8A8FA8;
+                                text-transform:uppercase;letter-spacing:0.8px'>
+                        Clients Retenus
+                    </div>
+                    <div style='font-size:22px;font-weight:800;color:#4361EE'>
+                        {nb_retenus}
+                    </div>
+                    <div style='font-size:10px;color:#8A8FA8'>
+                        sur {nb_critiques} critiques
+                    </div>
+                </div>
+                <div style='text-align:center'>
+                    <div style='font-size:10px;font-weight:700;color:#8A8FA8;
+                                text-transform:uppercase;letter-spacing:0.8px'>
+                        Coût Campagne
+                    </div>
+                    <div style='font-size:22px;font-weight:800;color:#F4A261'>
+                        {cout_total:,.0f}€
+                    </div>
+                    <div style='font-size:10px;color:#8A8FA8'>
+                        {cout_action}€ × {nb_retenus} clients
+                    </div>
+                </div>
+                <div style='text-align:center'>
+                    <div style='font-size:10px;font-weight:700;color:#8A8FA8;
+                                text-transform:uppercase;letter-spacing:0.8px'>
+                        Gain MRR Récupéré
+                    </div>
+                    <div style='font-size:22px;font-weight:800;color:#2A9D8F'>
+                        {gain_brut:,.0f}€
+                    </div>
+                    <div style='font-size:10px;color:#8A8FA8'>
+                        MRR mensuel sauvegardé
+                    </div>
+                </div>
+                <div style='text-align:center'>
+                    <div style='font-size:10px;font-weight:700;color:#8A8FA8;
+                                text-transform:uppercase;letter-spacing:0.8px'>
+                        ROI Net {roi_icon}
+                    </div>
+                    <div style='font-size:22px;font-weight:800;color:{roi_couleur}'>
+                        {roi_net:+,.0f}€
+                    </div>
+                    <div style='font-size:10px;color:#8A8FA8'>
+                        gain - coût campagne
+                    </div>
+                </div>
+            </div>
+            <hr style='border-color:#E8E8F0;margin:14px 0'>
+            <div style='font-size:11px;color:#8A8FA8;text-align:center'>
+                Ajustez les curseurs pour simuler différents scénarios
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ═════════════════════════════════════════════
@@ -542,107 +798,117 @@ elif "Simulateur" in page:
         </div>
         """, unsafe_allow_html=True)
 
-    # Radar comparatif
-    st.markdown("<div class='section-title'>Radar Comparatif — Profil Actuel vs Simulé</div>", unsafe_allow_html=True)
-    def norm(v,mn,mx): return (v-mn)/(mx-mn+1e-9)
-    cats = ["Connexions","Jours Actifs","CSAT","NPS","Sans Tickets","Sans Échecs"]
-    av = [norm(cust["monthly_logins"],0,50), norm(cust["weekly_active_days"],0,7),
-        norm(cust["csat_score"],1,5),       norm(cust["nps_score"],-100,100),
-        1-norm(cust["support_tickets"],0,10),1-norm(cust["payment_failures"],0,5)]
-    sv = [norm(sim_logins,0,50), norm(sim_active,0,7),
-        norm(sim_csat,1,5),     norm(sim_nps,-100,100),
-        1-norm(sim_tickets,0,10),1-norm(sim_failures,0,5)]
-    fig_r = go.Figure()
-    fig_r.add_trace(go.Scatterpolar(r=av+[av[0]], theta=cats+[cats[0]], fill="toself",
-                                    name="Actuel", line_color="#E63946", fillcolor="rgba(230,57,70,0.15)"))
-    fig_r.add_trace(go.Scatterpolar(r=sv+[sv[0]], theta=cats+[cats[0]], fill="toself",
-                                    name="Simulé", line_color="#2A9D8F", fillcolor="rgba(42,157,143,0.15)"))
-    fig_r.update_layout(**PLOTLY_BASE, height=380,
-                        polar=dict(radialaxis=dict(visible=True,range=[0,1],tickfont_color="#8A8FA8"),
-                                angularaxis=dict(tickfont_color="#1A1A2E"),bgcolor="rgba(0,0,0,0)"),
-                        legend=dict(orientation="h",y=-0.1))
-    st.plotly_chart(fig_r, use_container_width=True)
 
     # ─────────────────────────────────────────────
     # SHAP — EXPLICABILITÉ LOCALE
     # ─────────────────────────────────────────────
-    if st.button("🔍 Générer l'explication SHAP", type="primary"):
-        with st.spinner("Calcul des contributions SHAP en cours..."):
+    st.markdown("<div class='section-title'>🔍 Explication SHAP — Facteurs du Risque Simulé</div>", unsafe_allow_html=True)
+
+    with st.spinner("Calcul des contributions SHAP..."):
+        try:
+            import shap
+
+            explainer       = shap.TreeExplainer(model)
+            proc_sim        = preprocessor.transform(inp_df)
+
+            # ── Noms de features
             try:
-                import shap
-                import matplotlib
-                matplotlib.use("Agg")
-                import matplotlib.pyplot as plt
-
-                # Explainer optimisé pour XGBoost
-                explainer = shap.TreeExplainer(model)
-
-                # Profil simulé transformé
-                proc_sim = preprocessor.transform(inp_df)
-
-                # Noms de features
+                num_names   = preprocessor.named_transformers_["num"].feature_names_in_
+                cat_input_features = preprocessor.transformers_[1][2]
+                cat_encoder = preprocessor.named_transformers_["cat"].named_steps["onehot"]
+                cat_names   = cat_encoder.get_feature_names_out(cat_input_features)
+                feat_names  = list(num_names) + list(cat_names)
+            except Exception:
                 try:
-                    cat_names  = preprocessor.named_transformers_["cat"]["onehot"] \
-                                     .get_feature_names_out(CATEGORICAL_FEATURES)
-                    feat_names = list(NUMERIC_FEATURES) + list(cat_names)
+                    feat_names = list(preprocessor.get_feature_names_out())
                 except Exception:
                     feat_names = [f"feature_{i}" for i in range(proc_sim.shape[1])]
 
-                # ── Calcul SHAP values (format ancien : liste de 2 arrays)
-                shap_values_raw = explainer.shap_values(proc_sim)
+            # ── Calcul SHAP
+            shap_values_raw = explainer.shap_values(proc_sim)
 
-                # Gestion des deux formats possibles
-                if isinstance(shap_values_raw, list):
-                    # Format ancien : [shap_class0, shap_class1]
-                    vals     = shap_values_raw[1][0]
-                    base_val = explainer.expected_value[1]
-                elif shap_values_raw.ndim == 3:
-                    # Format nouveau : (n_samples, n_features, n_classes)
-                    vals     = shap_values_raw[0, :, 1]
-                    base_val = explainer.expected_value[1]
-                else:
-                    # Format simple : (n_samples, n_features)
-                    vals     = shap_values_raw[0]
-                    base_val = (explainer.expected_value[1]
-                                if isinstance(explainer.expected_value, (list, np.ndarray))
-                                else explainer.expected_value)
+            if isinstance(shap_values_raw, list):
+                vals     = shap_values_raw[1][0]
+            elif shap_values_raw.ndim == 3:
+                vals     = shap_values_raw[0, :, 1]
+            else:
+                vals     = shap_values_raw[0]
 
-                # Construction de l'objet Explanation
-                explanation = shap.Explanation(
-                    values        = vals,
-                    base_values   = float(base_val),
-                    data          = proc_sim[0],
-                    feature_names = feat_names,
-                )
+            # ── Mapping noms techniques → langage métier
+            labels = {
+                "payment_failures":    "échecs de paiement",
+                "support_tickets":     "tickets support ouverts",
+                "csat_score":          "score de satisfaction (CSAT)",
+                "tenure_months":       "ancienneté du client",
+                "last_login_days_ago": "jours depuis la dernière connexion",
+                "monthly_logins":      "fréquence de connexion mensuelle",
+                "nps_score":           "score NPS",
+                "contract_type":       "type de contrat",
+                "weekly_active_days":  "jours actifs par semaine",
+                "monthly_fee":         "montant mensuel facturé",
+                "avg_resolution_time": "temps moyen de résolution support",
+                "escalations":         "escalades support",
+                "email_open_rate":     "taux d'ouverture des emails",
+                "features_used":       "fonctionnalités utilisées",
+                "usage_growth_rate":   "taux de croissance d'usage",
+            }
 
-                # Waterfall plot
-                fig_shap, ax = plt.subplots(figsize=(10, 6))
-                fig_shap.patch.set_facecolor("white")
-                shap.plots.waterfall(explanation, max_display=15, show=False)
-                plt.title("Contributions SHAP — Profil  simulé", fontsize=12, pad=10)
-                plt.tight_layout()
-                st.pyplot(fig_shap)
-                plt.close(fig_shap)
+            def nom(f):
+                for k, v in labels.items():
+                    if k in f:
+                        return v
+                return f
 
-                # Légende
-                st.markdown("""
-                <div style='background:#F8F9FA;border-radius:10px;padding:16px;
-                            border-left:4px solid #4361EE;margin-top:12px'>
-                    <div style='font-weight:700;font-size:13px;margin-bottom:8px'>
-                        💡 Comment lire ce graphique ?
-                    </div>
-                    <ul style='font-size:12px;color:#555;line-height:1.8;margin:0;padding-left:16px'>
-                        <li><b>E[f(x)]</b> = risque moyen du portefeuille (point de départ)</li>
-                        <li><b>f(x)</b> = probabilité de churn du client simulé</li>
-                        <li><span style='color:#E63946;font-weight:700'>Barres rouges</span>
-                            = variables qui augmentent le risque</li>
-                        <li><span style='color:#2A9D8F;font-weight:700'>Barres bleues</span>
-                            = variables qui réduisent le risque</li>
-                        <li>La longueur = intensité de l'impact</li>
-                    </ul>
-                </div>
-                """, unsafe_allow_html=True)
+            # ── Top 5 features par impact absolu
+            shap_df = pd.DataFrame({
+                "feature": feat_names,
+                "shap":    vals
+            })
+            shap_df["abs"] = shap_df["shap"].abs()
+            shap_df = shap_df.sort_values("abs", ascending=False).head(5)
 
-            except Exception as e:
-                st.error(f"Erreur lors du calcul SHAP : {e}")
-                st.info("Vérifiez que SHAP est installé : pip install shap")
+            risques     = shap_df[shap_df["shap"] > 0].head(3)
+            protecteurs = shap_df[shap_df["shap"] < 0].head(2)
+
+            # ── Génération des phrases
+            lignes_risque = "".join([
+                f"""<li style='margin-bottom:6px'>
+                    ⚠️ <b>{nom(row['feature'])}</b>
+                    <span style='color:#8A8FA8;font-size:11px'>
+                        — impact : +{row['shap']:.3f} sur la probabilité de churn
+                    </span>
+                </li>"""
+                for _, row in risques.iterrows()
+            ]) if len(risques) > 0 else "<li style='color:#8A8FA8'>Aucun facteur aggravant détecté</li>"
+
+            lignes_protec = "".join([
+                f"""<li style='margin-bottom:6px'>
+                    ✅ <b>{nom(row['feature'])}</b>
+                    <span style='color:#8A8FA8;font-size:11px'>
+                        — impact : {row['shap']:.3f} sur la probabilité de churn
+                    </span>
+                </li>"""
+                for _, row in protecteurs.iterrows()
+            ]) if len(protecteurs) > 0 else "<li style='color:#8A8FA8'>Aucun facteur protecteur détecté</li>"
+
+            # ── Affichage avec composants natifs Streamlit
+            st.markdown("**🔍 Pourquoi ce client est-il classé à ce niveau de risque ?**")
+
+            st.error("🚨 Facteurs qui augmentent le risque de départ")
+            if len(risques) > 0:
+                for _, row in risques.iterrows():
+                    st.markdown(f"⚠️ **{nom(row['feature'])}** — impact : `+{row['shap']:.3f}` sur la probabilité de churn")
+            else:
+                st.markdown("Aucun facteur aggravant détecté")
+
+            st.success("✅ Facteurs qui jouent en faveur de la rétention")
+            if len(protecteurs) > 0:
+                for _, row in protecteurs.iterrows():
+                    st.markdown(f"✅ **{nom(row['feature'])}** — impact : `{row['shap']:.3f}` sur la probabilité de churn")
+            else:
+                st.markdown("Aucun facteur protecteur détecté")
+
+            st.info("💡 **Comment utiliser cette analyse ?** Agissez en priorité sur les facteurs rouges. Modifiez les curseurs pour simuler l'impact de vos actions.")
+
+        except Exception as e:
+            st.error(f"Erreur SHAP : {e}")
