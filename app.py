@@ -84,7 +84,7 @@ PLOTLY_BASE = dict(
     hoverlabel=dict(bgcolor="#1A1A2E", font_color="#FFFFFF", font_size=12),
 )
 def ax(): return dict(showgrid=True, gridcolor="#F0F0F5", showline=True,
-                      linecolor="#E8E8F0", tickfont=dict(color="#8A8FA8", size=11), zeroline=False)
+                    linecolor="#E8E8F0", tickfont=dict(color="#8A8FA8", size=11), zeroline=False)
 
 # ─────────────────────────────────────────────
 # CHARGEMENT
@@ -98,8 +98,8 @@ def load_pipeline():
 @st.cache_data
 def load_data():
     p = ("data/raw/customer_churn_business_dataset.csv"
-         if os.path.exists("data/raw/customer_churn_business_dataset.csv")
-         else "../data/raw/customer_churn_business_dataset.csv")
+        if os.path.exists("data/raw/customer_churn_business_dataset.csv")
+        else "../data/raw/customer_churn_business_dataset.csv")
     df = pd.read_csv(p)
     df["engagement_score"] = (
         (df["monthly_logins"] / 30 * 40) +
@@ -140,9 +140,9 @@ with st.sidebar:
         </div>
         <hr style='border-color:#2D3561;margin:10px 0 20px'>
     """, unsafe_allow_html=True)
-    page = st.radio("", ["📈  Vue Exécutive", "🎯  Analyse Churn",
-                         "💰  Impact Financier", "⚙️  Simulateur CRM"],
-                    label_visibility="collapsed")
+    page = st.radio("Navigation", ["  Vue Exécutive", " Analyse Churn",
+                            " Impact Financier", " Simulateur CRM"],
+                label_visibility="collapsed")
     st.markdown("<hr style='border-color:#2D3561;margin:20px 0 10px'>"
                 "<div style='font-size:10px;color:#4A5568;text-align:center'>XGBoost · 10 000 clients</div>",
                 unsafe_allow_html=True)
@@ -188,10 +188,10 @@ if "Exécutive" in page:
             delta={"reference":10,"increasing":{"color":"#E63946"},"decreasing":{"color":"#2A9D8F"}},
             title={"text":"Taux de Churn Prédit","font":{"size":12,"color":"#8A8FA8"}},
             gauge={"axis":{"range":[0,30]},"bar":{"color":"#E63946","thickness":0.25},
-                   "bgcolor":"#F4F6F9","borderwidth":0,
-                   "steps":[{"range":[0,10],"color":"#E8F8F5"},
-                             {"range":[10,20],"color":"#FFF3E0"},
-                             {"range":[20,30],"color":"#FFE5E7"}]}
+                "bgcolor":"#F4F6F9","borderwidth":0,
+                "steps":[{"range":[0,10],"color":"#E8F8F5"},
+                            {"range":[10,20],"color":"#FFF3E0"},
+                            {"range":[20,30],"color":"#FFE5E7"}]}
         ))
         fig.update_layout(**PLOTLY_BASE, height=250)
         st.plotly_chart(fig, use_container_width=True)
@@ -201,25 +201,25 @@ if "Exécutive" in page:
         rc = df["risk_level"].value_counts().reset_index()
         rc.columns = ["risk_level","count"]
         fig = px.pie(rc, values="count", names="risk_level", hole=0.62,
-                     color="risk_level", color_discrete_map=COLORS["risk"])
+                    color="risk_level", color_discrete_map=COLORS["risk"])
         fig.update_traces(textposition="outside", textinfo="percent+label", textfont_size=11)
         fig.add_annotation(text=f"<b>{nb:,}</b><br>clients", x=0.5, y=0.5,
-                           showarrow=False, font=dict(size=14,color="#1A1A2E"))
+                        showarrow=False, font=dict(size=14,color="#1A1A2E"))
         fig.update_layout(**PLOTLY_BASE, height=250, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
 
     with col3:
         st.markdown("<div class='section-title'>MRR par Segment & Niveau de Risque</div>", unsafe_allow_html=True)
         seg = df.groupby("customer_segment").apply(lambda x: pd.Series({
-            "Sécurisé":  x[x["proba_churn"]<0.40]["monthly_fee"].sum(),
-            "Modéré":    x[(x["proba_churn"]>=0.40)&(x["proba_churn"]<0.75)]["monthly_fee"].sum(),
-            "Critique":  x[x["proba_churn"]>=0.75]["monthly_fee"].sum(),
-        })).reset_index()
+    "Sécurisé":  x[x["proba_churn"]<0.40]["monthly_fee"].sum(),
+    "Modéré":    x[(x["proba_churn"]>=0.40)&(x["proba_churn"]<0.75)]["monthly_fee"].sum(),
+    "Critique":  x[x["proba_churn"]>=0.75]["monthly_fee"].sum(),
+}), include_groups=False).reset_index()
         fig = px.bar(seg, x="customer_segment", y=["Sécurisé","Modéré","Critique"],
-                     barmode="stack", color_discrete_sequence=["#2A9D8F","#F4A261","#E63946"])
+                    barmode="stack", color_discrete_sequence=["#2A9D8F","#F4A261","#E63946"])
         fig.update_layout(**PLOTLY_BASE, height=250,
-                          xaxis=ax(), yaxis={**ax(),"tickprefix":"€"},
-                          legend=dict(orientation="h",y=-0.3,font_size=11))
+                        xaxis=ax(), yaxis={**ax(),"tickprefix":"€"},
+                        legend=dict(orientation="h",y=-0.3,font_size=11))
         st.plotly_chart(fig, use_container_width=True)
 
     col4, col5 = st.columns(2)
@@ -228,22 +228,22 @@ if "Exécutive" in page:
         dp = df.copy()
         dp["Churn Réel"] = dp["churn"].map({0:"No Churn",1:"Churn"})
         fig = px.box(df, x="risk_level", y="engagement_score", color="risk_level",
-                     color_discrete_map=COLORS["risk"],
-                     category_orders={"risk_level":["Faible","Modéré","Critique"]}, points="outliers")
+                    color_discrete_map=COLORS["risk"],
+                    category_orders={"risk_level":["Faible","Modéré","Critique"]}, points="outliers")
         fig.update_layout(**PLOTLY_BASE, height=300, showlegend=False,
-                          xaxis={**ax(),"title":""},yaxis={**ax(),"title":"Score Engagement"})
+                        xaxis={**ax(),"title":""},yaxis={**ax(),"title":"Score Engagement"})
         st.plotly_chart(fig, use_container_width=True)
 
     with col5:
         st.markdown("<div class='section-title'>Distribution des Probabilités de Churn</div>", unsafe_allow_html=True)
         fig = px.histogram(df, x="proba_churn", nbins=40, color_discrete_sequence=["#4361EE"])
         fig.add_vline(x=0.40, line_dash="dash", line_color="#F4A261",
-                      annotation_text="Seuil Modéré", annotation_font_color="#F4A261")
+                    annotation_text="Seuil Modéré", annotation_font_color="#F4A261")
         fig.add_vline(x=0.75, line_dash="dash", line_color="#E63946",
-                      annotation_text="Seuil Critique", annotation_font_color="#E63946")
+                    annotation_text="Seuil Critique", annotation_font_color="#E63946")
         fig.update_layout(**PLOTLY_BASE, height=300,
-                          xaxis={**ax(),"title":"Probabilité de Churn"},
-                          yaxis={**ax(),"title":"Nombre de Clients"})
+                        xaxis={**ax(),"title":"Probabilité de Churn"},
+                        yaxis={**ax(),"title":"Nombre de Clients"})
         st.plotly_chart(fig, use_container_width=True)
 
 
@@ -279,37 +279,37 @@ elif "Churn" in page:
     with col1:
         st.markdown("<div class='section-title'>Risque Moyen par Variable Catégorielle</div>", unsafe_allow_html=True)
         var_cat = st.selectbox("Variable :", ["contract_type","customer_segment","payment_method",
-                                              "survey_response","signup_channel","discount_applied",
-                                              "price_increase_last_3m","complaint_type"])
+                                            "survey_response","signup_channel","discount_applied",
+                                            "price_increase_last_3m","complaint_type"])
         cd = df_f.groupby(var_cat)["proba_churn"].mean().reset_index().sort_values("proba_churn", ascending=True)
         fig = px.bar(cd, x="proba_churn", y=var_cat, orientation="h",
-                     color="proba_churn", color_continuous_scale=["#2A9D8F","#F4A261","#E63946"],
-                     text=cd["proba_churn"].apply(lambda x:f"{x*100:.1f}%"))
+                    color="proba_churn", color_continuous_scale=["#2A9D8F","#F4A261","#E63946"],
+                    text=cd["proba_churn"].apply(lambda x:f"{x*100:.1f}%"))
         fig.update_traces(textposition="outside")
         fig.update_layout(**PLOTLY_BASE, height=320, coloraxis_showscale=False,
-                          xaxis={**ax(),"title":"Proba Churn Moyenne","tickformat":".0%"},
-                          yaxis={**ax(),"title":""})
+                        xaxis={**ax(),"title":"Proba Churn Moyenne","tickformat":".0%"},
+                        yaxis={**ax(),"title":""})
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.markdown("<div class='section-title'>Scatter : Engagement vs Risque de Churn</div>", unsafe_allow_html=True)
         fig = px.scatter(df_f, x="engagement_score", y="proba_churn",
-                         color="risk_level", color_discrete_map=COLORS["risk"],
-                         size="monthly_fee", size_max=14, opacity=0.6,
-                         hover_data=["customer_id","contract_type","monthly_fee"])
+                        color="risk_level", color_discrete_map=COLORS["risk"],
+                        size="monthly_fee", size_max=14, opacity=0.6,
+                        hover_data=["customer_id","contract_type","monthly_fee"])
         fig.add_hline(y=0.5, line_dash="dot", line_color="#8A8FA8",
-                      annotation_text="Seuil 50%", annotation_font_color="#8A8FA8")
+                    annotation_text="Seuil 50%", annotation_font_color="#8A8FA8")
         fig.update_layout(**PLOTLY_BASE, height=320,
-                          xaxis={**ax(),"title":"Score d'Engagement (0–100)"},
-                          yaxis={**ax(),"title":"Probabilité de Churn"},
-                          legend=dict(title="Risque",orientation="h",y=-0.25))
+                        xaxis={**ax(),"title":"Score d'Engagement (0–100)"},
+                        yaxis={**ax(),"title":"Probabilité de Churn"},
+                        legend=dict(title="Risque",orientation="h",y=-0.25))
         st.plotly_chart(fig, use_container_width=True)
 
     col3, col4 = st.columns(2)
     with col3:
         st.markdown("<div class='section-title'>Heatmap : Risque Moyen Contrat × Segment</div>", unsafe_allow_html=True)
         hmap = pd.crosstab(df_f["contract_type"], df_f["customer_segment"],
-                           values=df_f["proba_churn"], aggfunc="mean").fillna(0)
+                        values=df_f["proba_churn"], aggfunc="mean").fillna(0)
         fig = px.imshow(hmap, text_auto=".2f",
                         color_continuous_scale=["#E8F8F5","#F4A261","#E63946"], aspect="auto")
         fig.update_layout(**PLOTLY_BASE, height=280, coloraxis_showscale=False)
@@ -326,7 +326,7 @@ elif "Churn" in page:
                         color_discrete_map={"No Churn":"#2A9D8F","Churn":"#E63946"},
                         box=True, points="outliers")
         fig.update_layout(**PLOTLY_BASE, height=280, showlegend=False,
-                          xaxis={**ax(),"title":""},yaxis={**ax(),"title":num_var})
+                        xaxis={**ax(),"title":""},yaxis={**ax(),"title":num_var})
         st.plotly_chart(fig, use_container_width=True)
 
 
@@ -377,54 +377,54 @@ elif "Financier" in page:
         st.markdown("<div class='section-title'>Top 15 Clients — Plus Fort Revenu à Risque</div>", unsafe_allow_html=True)
         top15 = df.nlargest(15,"expected_loss_mensuel").sort_values("expected_loss_mensuel",ascending=True)
         fig = px.bar(top15, x="expected_loss_mensuel", y="customer_id", orientation="h",
-                     color="risk_level", color_discrete_map=COLORS["risk"],
-                     text=top15["expected_loss_mensuel"].apply(lambda x:f"{x:.0f}€"),
-                     hover_data=["monthly_fee","proba_churn","contract_type"])
+                    color="risk_level", color_discrete_map=COLORS["risk"],
+                    text=top15["expected_loss_mensuel"].apply(lambda x:f"{x:.0f}€"),
+                    hover_data=["monthly_fee","proba_churn","contract_type"])
         fig.update_traces(textposition="outside")
         fig.update_layout(**PLOTLY_BASE, height=360,
-                          xaxis={**ax(),"title":"Expected Loss Mensuel (€)"},
-                          yaxis={**ax(),"title":""},
-                          legend=dict(title="Risque",orientation="h",y=-0.2))
+                        xaxis={**ax(),"title":"Expected Loss Mensuel (€)"},
+                        yaxis={**ax(),"title":""},
+                        legend=dict(title="Risque",orientation="h",y=-0.2))
         st.plotly_chart(fig, use_container_width=True)
 
     col3, col4 = st.columns([1.8,1.2])
     with col3:
         st.markdown("<div class='section-title'>Quadrant Valeur × Risque — Urgences Absolues</div>", unsafe_allow_html=True)
         fig = px.scatter(df, x="total_revenue", y="proba_churn",
-                         color="risk_level", color_discrete_map=COLORS["risk"],
-                         size="monthly_fee", size_max=16, opacity=0.6,
-                         hover_data=["customer_id","contract_type","customer_segment"])
+                        color="risk_level", color_discrete_map=COLORS["risk"],
+                        size="monthly_fee", size_max=16, opacity=0.6,
+                        hover_data=["customer_id","contract_type","customer_segment"])
         fig.add_hline(y=0.75, line_dash="dash", line_color="#E63946",
-                      annotation_text="Seuil Critique", annotation_font_color="#E63946")
+                    annotation_text="Seuil Critique", annotation_font_color="#E63946")
         fig.add_vline(x=df["total_revenue"].quantile(0.80), line_dash="dash", line_color="#F4A261",
-                      annotation_text="Top 20% Valeur", annotation_font_color="#F4A261")
+                    annotation_text="Top 20% Valeur", annotation_font_color="#F4A261")
         fig.update_layout(**PLOTLY_BASE, height=360,
-                          xaxis={**ax(),"title":"Revenu Total Historique (€)"},
-                          yaxis={**ax(),"title":"Probabilité de Churn"},
-                          legend=dict(title="Risque",orientation="h",y=-0.2))
+                        xaxis={**ax(),"title":"Revenu Total Historique (€)"},
+                        yaxis={**ax(),"title":"Probabilité de Churn"},
+                        legend=dict(title="Risque",orientation="h",y=-0.2))
         st.plotly_chart(fig, use_container_width=True)
 
     with col4:
         st.markdown("<div class='section-title'>Expected Loss par Contrat</div>", unsafe_allow_html=True)
         lc = df.groupby("contract_type")["expected_loss_mensuel"].sum().reset_index().sort_values("expected_loss_mensuel",ascending=False)
         fig = px.bar(lc, x="contract_type", y="expected_loss_mensuel",
-                     color="contract_type",
-                     color_discrete_sequence=[COLORS["red"],COLORS["orange"],COLORS["green"]],
-                     text=lc["expected_loss_mensuel"].apply(lambda x:f"{x:,.0f}€"))
+                    color="contract_type",
+                    color_discrete_sequence=[COLORS["red"],COLORS["orange"],COLORS["green"]],
+                    text=lc["expected_loss_mensuel"].apply(lambda x:f"{x:,.0f}€"))
         fig.update_traces(textposition="outside")
         fig.update_layout(**PLOTLY_BASE, height=360, showlegend=False,
-                          xaxis={**ax(),"title":""},yaxis={**ax(),"title":"Expected Loss (€)"})
+                        xaxis={**ax(),"title":""},yaxis={**ax(),"title":"Expected Loss (€)"})
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("<div class='section-title'>📋 Comptes Critiques (Proba > 75% & MRR > Moyenne)</div>", unsafe_allow_html=True)
     crit = (df[(df["proba_churn"]>0.75)&(df["monthly_fee"]>df["monthly_fee"].mean())]
-              .sort_values("expected_loss_mensuel",ascending=False)
-              [["customer_id","customer_segment","contract_type","monthly_fee",
+            .sort_values("expected_loss_mensuel",ascending=False)
+            [["customer_id","customer_segment","contract_type","monthly_fee",
                 "total_revenue","proba_churn","csat_score","payment_failures"]]
-              .rename(columns={"customer_id":"ID Client","customer_segment":"Segment",
-                               "contract_type":"Contrat","monthly_fee":"MRR (€)",
-                               "total_revenue":"LTV (€)","proba_churn":"Proba Churn",
-                               "csat_score":"CSAT","payment_failures":"Échecs Paiement"}))
+            .rename(columns={"customer_id":"ID Client","customer_segment":"Segment",
+                            "contract_type":"Contrat","monthly_fee":"MRR (€)",
+                            "total_revenue":"LTV (€)","proba_churn":"Proba Churn",
+                            "csat_score":"CSAT","payment_failures":"Échecs Paiement"}))
     crit["Proba Churn"] = crit["Proba Churn"].apply(lambda x:f"{x*100:.1f}%")
     st.dataframe(crit, use_container_width=True, hide_index=True)
 
@@ -479,7 +479,7 @@ elif "Simulateur" in page:
                     "support_tickets":sim_tickets,"nps_score":sim_nps,
                     "payment_failures":sim_failures,"contract_type":sim_contract})
     drop_c = ["churn","customer_id","proba_churn","risk_level",
-              "expected_loss_mensuel","expected_loss_total","engagement_score"]
+            "expected_loss_mensuel","expected_loss_total","engagement_score"]
     inp_df    = pd.DataFrame([input_d]).drop(columns=drop_c, errors="ignore")
     sim_proba = model.predict_proba(preprocessor.transform(inp_df))[0][1]
     act_proba = cust["proba_churn"]
@@ -496,9 +496,9 @@ elif "Simulateur" in page:
             number={"suffix":"%","font":{"size":30}},
             title={"text":title,"font":{"size":12,"color":"#8A8FA8"}},
             gauge={"axis":{"range":[0,100]},"bar":{"color":c},
-                   "steps":[{"range":[0,40],"color":"#E8F8F5"},
-                             {"range":[40,75],"color":"#FFF3E0"},
-                             {"range":[75,100],"color":"#FFE5E7"}]}
+                "steps":[{"range":[0,40],"color":"#E8F8F5"},
+                            {"range":[40,75],"color":"#FFF3E0"},
+                            {"range":[75,100],"color":"#FFE5E7"}]}
         ))
         f.update_layout(**PLOTLY_BASE, height=240)
         return f
@@ -512,10 +512,10 @@ elif "Simulateur" in page:
             delta={"reference":act_proba*100,"increasing":{"color":"#E63946"},"decreasing":{"color":"#2A9D8F"},"suffix":"%"},
             title={"text":"Risque SIMULÉ","font":{"size":12,"color":"#8A8FA8"}},
             gauge={"axis":{"range":[0,100]},
-                   "bar":{"color":"#E63946" if sim_proba>0.75 else ("#F4A261" if sim_proba>0.4 else "#2A9D8F")},
-                   "steps":[{"range":[0,40],"color":"#E8F8F5"},
-                             {"range":[40,75],"color":"#FFF3E0"},
-                             {"range":[75,100],"color":"#FFE5E7"}]}
+                "bar":{"color":"#E63946" if sim_proba>0.75 else ("#F4A261" if sim_proba>0.4 else "#2A9D8F")},
+                "steps":[{"range":[0,40],"color":"#E8F8F5"},
+                            {"range":[40,75],"color":"#FFF3E0"},
+                            {"range":[75,100],"color":"#FFE5E7"}]}
         ))
         fig_s.update_layout(**PLOTLY_BASE, height=240)
         st.plotly_chart(fig_s, use_container_width=True)
@@ -547,11 +547,11 @@ elif "Simulateur" in page:
     def norm(v,mn,mx): return (v-mn)/(mx-mn+1e-9)
     cats = ["Connexions","Jours Actifs","CSAT","NPS","Sans Tickets","Sans Échecs"]
     av = [norm(cust["monthly_logins"],0,50), norm(cust["weekly_active_days"],0,7),
-          norm(cust["csat_score"],1,5),       norm(cust["nps_score"],-100,100),
-          1-norm(cust["support_tickets"],0,10),1-norm(cust["payment_failures"],0,5)]
+        norm(cust["csat_score"],1,5),       norm(cust["nps_score"],-100,100),
+        1-norm(cust["support_tickets"],0,10),1-norm(cust["payment_failures"],0,5)]
     sv = [norm(sim_logins,0,50), norm(sim_active,0,7),
-          norm(sim_csat,1,5),     norm(sim_nps,-100,100),
-          1-norm(sim_tickets,0,10),1-norm(sim_failures,0,5)]
+        norm(sim_csat,1,5),     norm(sim_nps,-100,100),
+        1-norm(sim_tickets,0,10),1-norm(sim_failures,0,5)]
     fig_r = go.Figure()
     fig_r.add_trace(go.Scatterpolar(r=av+[av[0]], theta=cats+[cats[0]], fill="toself",
                                     name="Actuel", line_color="#E63946", fillcolor="rgba(230,57,70,0.15)"))
@@ -559,26 +559,13 @@ elif "Simulateur" in page:
                                     name="Simulé", line_color="#2A9D8F", fillcolor="rgba(42,157,143,0.15)"))
     fig_r.update_layout(**PLOTLY_BASE, height=380,
                         polar=dict(radialaxis=dict(visible=True,range=[0,1],tickfont_color="#8A8FA8"),
-                                   angularaxis=dict(tickfont_color="#1A1A2E"),bgcolor="rgba(0,0,0,0)"),
+                                angularaxis=dict(tickfont_color="#1A1A2E"),bgcolor="rgba(0,0,0,0)"),
                         legend=dict(orientation="h",y=-0.1))
     st.plotly_chart(fig_r, use_container_width=True)
 
     # ─────────────────────────────────────────────
     # SHAP — EXPLICABILITÉ LOCALE
     # ─────────────────────────────────────────────
-    st.markdown("---")
-    st.markdown("<div class='section-title'>Explication Décisionnelle — SHAP</div>",
-                unsafe_allow_html=True)
-    st.markdown("""
-        <p style='font-size:13px;color:#8A8FA8;margin-bottom:12px'>
-        Ce graphique explique <b>pourquoi</b> l'algorithme a produit ce score de risque
-        pour le profil simulé. Les barres <span style='color:#E63946;font-weight:700'>rouges</span>
-        augmentent le risque de départ, les barres
-        <span style='color:#2A9D8F;font-weight:700'>bleues</span> le réduisent.
-        La valeur de départ E[f(x)] représente le risque moyen sur l'ensemble du portefeuille.
-        </p>
-    """, unsafe_allow_html=True)
-
     if st.button("🔍 Générer l'explication SHAP", type="primary"):
         with st.spinner("Calcul des contributions SHAP en cours..."):
             try:
@@ -590,28 +577,40 @@ elif "Simulateur" in page:
                 # Explainer optimisé pour XGBoost
                 explainer = shap.TreeExplainer(model)
 
-                # Noms de features après preprocessing
+                # Profil simulé transformé
+                proc_sim = preprocessor.transform(inp_df)
+
+                # Noms de features
                 try:
                     cat_names  = preprocessor.named_transformers_["cat"]["onehot"] \
                                      .get_feature_names_out(CATEGORICAL_FEATURES)
                     feat_names = list(NUMERIC_FEATURES) + list(cat_names)
                 except Exception:
-                    feat_names = [f"feature_{i}" for i in range(inp_df.shape[1])]
+                    feat_names = [f"feature_{i}" for i in range(proc_sim.shape[1])]
 
-                # SHAP values sur le profil simulé
-                proc_sim  = preprocessor.transform(inp_df)
-                shap_vals = explainer(proc_sim)
+                # ── Calcul SHAP values (format ancien : liste de 2 arrays)
+                shap_values_raw = explainer.shap_values(proc_sim)
 
-                base_val = (shap_vals.base_values[0][1]
-                            if shap_vals.base_values.ndim > 1
-                            else shap_vals.base_values[0])
-                vals = (shap_vals.values[0][:, 1]
-                        if shap_vals.values.ndim == 3
-                        else shap_vals.values[0])
+                # Gestion des deux formats possibles
+                if isinstance(shap_values_raw, list):
+                    # Format ancien : [shap_class0, shap_class1]
+                    vals     = shap_values_raw[1][0]
+                    base_val = explainer.expected_value[1]
+                elif shap_values_raw.ndim == 3:
+                    # Format nouveau : (n_samples, n_features, n_classes)
+                    vals     = shap_values_raw[0, :, 1]
+                    base_val = explainer.expected_value[1]
+                else:
+                    # Format simple : (n_samples, n_features)
+                    vals     = shap_values_raw[0]
+                    base_val = (explainer.expected_value[1]
+                                if isinstance(explainer.expected_value, (list, np.ndarray))
+                                else explainer.expected_value)
 
+                # Construction de l'objet Explanation
                 explanation = shap.Explanation(
                     values        = vals,
-                    base_values   = base_val,
+                    base_values   = float(base_val),
                     data          = proc_sim[0],
                     feature_names = feat_names,
                 )
@@ -625,7 +624,7 @@ elif "Simulateur" in page:
                 st.pyplot(fig_shap)
                 plt.close(fig_shap)
 
-                # Légende explicative
+                # Légende
                 st.markdown("""
                 <div style='background:#F8F9FA;border-radius:10px;padding:16px;
                             border-left:4px solid #4361EE;margin-top:12px'>
@@ -633,13 +632,13 @@ elif "Simulateur" in page:
                         💡 Comment lire ce graphique ?
                     </div>
                     <ul style='font-size:12px;color:#555;line-height:1.8;margin:0;padding-left:16px'>
-                        <li><b>E[f(x)]</b> = risque moyen de l'ensemble du portefeuille (point de départ)</li>
-                        <li><b>f(x)</b> = probabilité de churn calculée pour ce client simulé</li>
+                        <li><b>E[f(x)]</b> = risque moyen du portefeuille (point de départ)</li>
+                        <li><b>f(x)</b> = probabilité de churn du client simulé</li>
                         <li><span style='color:#E63946;font-weight:700'>Barres rouges</span>
-                            = variables qui <b>augmentent</b> le risque de résiliation</li>
+                            = variables qui augmentent le risque</li>
                         <li><span style='color:#2A9D8F;font-weight:700'>Barres bleues</span>
-                            = variables qui <b>réduisent</b> le risque (facteurs protecteurs)</li>
-                        <li>La longueur de chaque barre = intensité de l'impact</li>
+                            = variables qui réduisent le risque</li>
+                        <li>La longueur = intensité de l'impact</li>
                     </ul>
                 </div>
                 """, unsafe_allow_html=True)
